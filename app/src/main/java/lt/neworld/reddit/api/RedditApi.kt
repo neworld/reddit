@@ -38,6 +38,9 @@ object RedditApi {
         SubmissionLoader(redditClient)
     }
 
+    @Volatile
+    private var isLoading = false
+
     class SubmissionLoader(
             redditClient: Single<RedditClient>
     ) {
@@ -63,25 +66,35 @@ object RedditApi {
                 notifyChangedItems()
             }
 
+        @Synchronized
         fun loadMore() {
+            if (isLoading) {
+                Log.e(TAG, "another loading is in progress")
+                return
+            }
+
+            isLoading = true
+
             if (subject.hasComplete()) {
                 Log.e(TAG, "List of submissions are depleted. You shouldn't call loadMore() anymore")
             }
             Log.d(TAG, "request load more")
 
-            paginator.flatMap {
-                Single.just(it.next())
-            }.subscribeOn(Schedulers.io()).subscribe({ submissions ->
-                Log.d(TAG, "loaded ${submissions.size} more items")
-                loaded += submissions
-                notifyChangedItems()
-                if (submissions.size == 0) {
-                    Log.d(TAG, "Finished")
-                    subject.onComplete()
-                }
-            }, {
-                subject.onError(it)
-            })
+            paginator
+                    .doFinally { isLoading = false }
+                    .flatMap { Single.just(it.next()) }
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({ submissions ->
+                        Log.d(TAG, "loaded ${submissions.size} more items")
+                        loaded += submissions
+                        notifyChangedItems()
+                        if (submissions.size == 0) {
+                            Log.d(TAG, "Finished")
+                            subject.onComplete()
+                        }
+                    }, {
+                        subject.onError(it)
+                    })
         }
 
         private fun notifyChangedItems() {
