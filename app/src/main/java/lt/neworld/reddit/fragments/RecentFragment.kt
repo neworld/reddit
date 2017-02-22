@@ -35,9 +35,7 @@ class RecentFragment : Fragment() {
     override fun onViewCreated(view: View?, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        if (savedInstanceState == null) {
-            loadRecent()
-        }
+        registerDataChangedObserver()
 
         list.layoutManager = LinearLayoutManager(activity)
         list.adapter = constructAdapter()
@@ -74,7 +72,7 @@ class RecentFragment : Fragment() {
         super.onDestroyView()
     }
 
-    private fun loadRecent() {
+    private fun registerDataChangedObserver() {
         disposable = RedditApi.submissionLoader.onChanged
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe({ submissions ->
