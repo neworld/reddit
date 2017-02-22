@@ -64,6 +64,9 @@ object RedditApi {
             }
 
         fun loadMore() {
+            if (subject.hasComplete()) {
+                Log.e(TAG, "List of submissions are depleted. You shouldn't call loadMore() anymore")
+            }
             Log.d(TAG, "request load more")
 
             paginator.flatMap {
@@ -72,6 +75,10 @@ object RedditApi {
                 Log.d(TAG, "loaded ${submissions.size} more items")
                 loaded += submissions
                 notifyChangedItems()
+                if (submissions.size == 0) {
+                    Log.d(TAG, "Finished")
+                    subject.onComplete()
+                }
             }, {
                 subject.onError(it)
             })

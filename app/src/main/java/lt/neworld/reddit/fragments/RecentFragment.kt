@@ -17,13 +17,16 @@ import kotlinx.android.synthetic.main.list_item.view.*
 import lt.neworld.reddit.PreviewActivity
 import lt.neworld.reddit.R
 import lt.neworld.reddit.api.RedditApi
+import lt.neworld.reddit.utils.MergeAdapter
 import lt.neworld.reddit.utils.SimpleViewHolder
+import lt.neworld.reddit.utils.ViewAdapter
 import net.dean.jraw.models.Submission
 
 class RecentFragment : Fragment() {
 
     private val adapter = Adapter()
     private var disposable: Disposable? = null
+    private var progressBar: View? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_recent, container, false)
@@ -37,7 +40,7 @@ class RecentFragment : Fragment() {
         }
 
         list.layoutManager = LinearLayoutManager(activity)
-        list.adapter = adapter
+        list.adapter = constructAdapter()
         list.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 val manager = recyclerView.layoutManager as LinearLayoutManager
@@ -56,21 +59,30 @@ class RecentFragment : Fragment() {
         })
     }
 
+    private fun constructAdapter(): RecyclerView.Adapter<*> {
+        progressBar = LayoutInflater.from(activity).inflate(R.layout.list_progress, list, false)
+        return MergeAdapter().apply {
+            addAdapter(adapter)
+            addAdapter(ViewAdapter(progressBar!!))
+        }
+    }
+
     override fun onDestroyView() {
         disposable?.dispose()
+        progressBar = null
+        list.adapter = null
         super.onDestroyView()
     }
 
     private fun loadRecent() {
-        val progressDialog = ProgressDialog.show(activity, "", "Loading", true)
-
         disposable = RedditApi.submissionLoader.onChanged
                 .observeOn(AndroidSchedulers.mainThread())
-                .doOnNext { progressDialog.hide() }
                 .subscribe({ submissions ->
                     adapter.submissions = submissions
                 }, {
                     Log.e(TAG, "Failed get changed items", it)
+                }, {
+                    progressBar!!.visibility = View.GONE
                 })
     }
 
